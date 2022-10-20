@@ -70,37 +70,226 @@ function onMIDIMessage(event) {
 
 	// Does the message begin with 0xf0 0x41 0x0 0x79 0x12 0x0 ?
 
-	if (event.data.length >= 8 &&
-		event.data[0] == 0xf0 &&
-		event.data[1] == 0x41 &&
-		event.data[2] == 0 &&
-		event.data[3] == 0x79 &&
-		event.data[4] == 0x12 &&
-		event.data[5] == 0
+	if (event.data.length < 15 ||
+		event.data[0] != 0xf0 ||
+		event.data[1] != 0x41 ||
+		event.data[2] != 0 ||
+		event.data[3] != 0x79 ||
+		event.data[4] != 0x12 ||
+		event.data[5] != 0
 	) {
-		const messageNum = event.data[7];
-		const expectedMessageLengths = [77, 19, 24, 17, 21, 15, 18, 16, 16, 88, 32, 20, 16, 20];
+		console.error('**** Expected message header not found ****');
+		return;
+	}
 
-		console.log('GX-700 SysEx message');
-		console.log('  Patch number', event.data[6] + 1);
-		console.log('  Patch message', messageNum);
+	const patchNum = event.data[6] + 1;
+	const messageNum = event.data[7];
+	const expectedMessageLengths = [77, 19, 24, 17, 21, 15, 18, 16, 16, 88, 32, 20, 16, 20];
+	const patchSectionNames = [
+		'Header',
+		'Compression',
+		'Wah',
+		'Overdrive / Distortion',
+		'Preamp',
+		'Loop',
+		'Equalization',
+		'Speaker Simulation',
+		'Noise Suppression',
+		'Modulation',
+		'Delay',
+		'Chorus',
+		'Tremolo / Panning',
+		'Reverb'
+	];
 
-		if (messageNum >= expectedMessageLengths.length) {
-			console.error('**** Bad message number ****');
-			return;
-		} else if (event.data.length != expectedMessageLengths[messageNum]) {
-			console.error('**** Bad message length ****');
-			return;
-		}
+	console.log('GX-700 SysEx message');
+	console.log('  Patch number', patchNum);
+	console.log('  Patch message', messageNum);
 
-		switch (messageNum) {
-			case 0:
-				console.log('  Patch name:', new TextDecoder().decode(event.data.slice(23, 35)));
-				break;
+	if (messageNum >= expectedMessageLengths.length) {
+		console.error('**** Bad message number ****');
+		return;
+	} else if (event.data.length != expectedMessageLengths[messageNum]) {
+		console.error('**** Bad message length ****');
+		return;
+	}
 
-			default:
-				break;
-		}
+	if (event.data[event.data.length - 1] != 0xf7) {
+		console.error('**** Last byte in message is not 0xf7 ****');
+		return;
+	}
+
+	if (messageNum == 0) {
+		// Handle the patch's header message.
+
+		// The patch name is 12 characters long.
+		console.log('  Patch name:', new TextDecoder().decode(event.data.slice(23, 35)));
+
+		// Bytes 35-74 should be:
+		// 03 07 00 00 00 64 00 00 00 7F 03 07 00 00 00 64
+		// 0B 00 00 7F 00 00 00 00 00 64 01 00 00 7F 00 00
+		// 00 00 00 64 24 00 00 7F
+
+		// ... followed by a checksum byte (?), followed by the terminating 0xf7
+
+		return;
+	}
+
+	if (event.data[8] != 0) {
+		console.error('**** event.data[8] != 0 ****');
+		return;
+	}
+
+	if (event.data[9] != 0 && event.data[9] != 1) {
+		console.error('**** event.data[9] (patch section enabled/disabled) is neither zero nor one ****');
+		return;
+	}
+
+	const patchSectionEnabled = event.data[9] != 0;
+
+	console.log('  Patch number', patchNum, '-', patchSectionNames[messageNum], '-', patchSectionEnabled ? 'Enabled' : 'Disabled');
+
+	if (!patchSectionEnabled) {
+		return;
+	}
+
+	const distortionTypes = ['Vintage OD', 'Turbo OD', 'Blues', 'Distortion', 'Turbo DS', 'Metal', 'Fuzz'];
+
+	const reverbTypes = ['Room1', 'Room2', 'Hall1', 'Hall2', 'Plate'];
+
+	switch (messageNum) {
+		case 1:		// Compression - 19 bytes
+			console.log('    Byte 10:', event.data[10]);
+			console.log('    Byte 11:', event.data[11]);
+			console.log('    Byte 12:', event.data[12]);
+			console.log('    Byte 13:', event.data[13]);
+			console.log('    Byte 14:', event.data[14]);
+			console.log('    Byte 15:', event.data[15]);
+			console.log('    Byte 16:', event.data[16]);
+			break;
+
+		case 2:		// Wah - 24 bytes
+			console.log('    Byte 10:', event.data[10]);
+			console.log('    Byte 11:', event.data[11]);
+			console.log('    Byte 12:', event.data[12]);
+			console.log('    Byte 13:', event.data[13]);
+			console.log('    Byte 14:', event.data[14]);
+			console.log('    Byte 15:', event.data[15]);
+			console.log('    Byte 16:', event.data[16]);
+			console.log('    Byte 17:', event.data[17]);
+			console.log('    Byte 18:', event.data[18]);
+			console.log('    Byte 19:', event.data[19]);
+			console.log('    Byte 20:', event.data[20]);
+			console.log('    Byte 21:', event.data[21]);
+			break;
+
+		case 3:		// Overdrive / Distortion - 17 bytes
+			console.log('    Distortion type:', distortionTypes[event.data[10]]);
+			console.log('    Drive:', event.data[11]);
+			console.log('    Bass:', event.data[12] - 50);
+			console.log('    Treble:', event.data[13] - 50);
+			console.log('    Effect level:', event.data[14]);
+			break;
+
+		case 4:		// Preamp - 21 bytes
+			console.log('    Byte 10:', event.data[10]);
+			console.log('    Byte 11:', event.data[11]);
+			console.log('    Byte 12:', event.data[12]);
+			console.log('    Byte 13:', event.data[13]);
+			console.log('    Byte 14:', event.data[14]);
+			console.log('    Byte 15:', event.data[15]);
+			console.log('    Byte 16:', event.data[16]);
+			console.log('    Byte 17:', event.data[17]);
+			console.log('    Byte 18:', event.data[18]);
+			break;
+
+		case 5:		// Loop - 15 bytes
+			console.log('    Byte 10:', event.data[10]);
+			console.log('    Byte 11:', event.data[11]);
+			console.log('    Byte 12:', event.data[12]);
+			break;
+
+		case 6:		// Equalization - 18 bytes
+			console.log('    Byte 10:', event.data[10]);
+			console.log('    Byte 11:', event.data[11]);
+			console.log('    Byte 12:', event.data[12]);
+			console.log('    Byte 13:', event.data[13]);
+			console.log('    Byte 14:', event.data[14]);
+			console.log('    Byte 15:', event.data[15]);
+			break;
+
+		case 7:		// Speaker Simulation - 16 bytes
+			console.log('    Byte 10:', event.data[10]);
+			console.log('    Byte 11:', event.data[11]);
+			console.log('    Byte 12:', event.data[12]);
+			console.log('    Byte 13:', event.data[13]);
+			break;
+
+		case 8:		// Noise Suppression - 16 bytes
+			console.log('    Threshold:', event.data[10]);
+			console.log('    Release:', event.data[11]);
+			console.log('    Byte 12:', event.data[12], '(0 = Guitar in, 1 = NS in?)');
+			console.log('    Effect level:', event.data[13]);
+			break;
+
+		case 9:		// Modulation - 88 bytes
+			console.log('    Modulation - 88 bytes, 76 of which describe the modulation settings');
+			break;
+
+		case 10:	// Delay - 32 bytes
+			console.log('    Byte 10:', event.data[10]);
+			console.log('    Byte 11:', event.data[11]);
+			console.log('    Byte 12:', event.data[12]);
+			console.log('    Byte 13:', event.data[13]);
+			console.log('    Byte 14:', event.data[14]);
+			console.log('    Byte 15:', event.data[15]);
+			console.log('    Byte 16:', event.data[16]);
+			console.log('    Byte 17:', event.data[17]);
+			console.log('    Byte 18:', event.data[18]);
+			console.log('    Byte 19:', event.data[19]);
+			console.log('    Byte 20:', event.data[20]);
+			console.log('    Byte 21:', event.data[21]);
+			console.log('    Byte 22:', event.data[22]);
+			console.log('    Byte 23:', event.data[23]);
+			console.log('    Byte 24:', event.data[24]);
+			console.log('    Byte 25:', event.data[25]);
+			console.log('    Byte 26:', event.data[26]);
+			console.log('    Byte 27:', event.data[27]);
+			console.log('    Byte 28:', event.data[28]);
+			console.log('    Byte 29:', event.data[29]);
+			break;
+
+		case 11:	// Chorus - 20 bytes
+			console.log('    Byte 10:', event.data[10], '(Mode? (0 = mono, 1 = stereo ?))');
+			console.log('    Rate:', event.data[11]);
+			console.log('    Depth:', event.data[12]);
+			console.log('    Byte 13:', event.data[13]);
+			console.log('    Byte 14:', event.data[14]);
+			console.log('    Byte 15:', event.data[15]);
+			console.log('    Byte 16:', event.data[16]);
+			console.log('    Effect level:', event.data[17]);
+			break;
+
+		case 12:	// Tremolo / Panning - 16 bytes
+			console.log('    Byte 10:', event.data[10]);
+			console.log('    Byte 11:', event.data[11]);
+			console.log('    Byte 12:', event.data[12]);
+			console.log('    Byte 13:', event.data[13]);
+			break;
+
+		case 13:	// Reverb - 20 bytes
+			console.log('    Reverb type:', reverbTypes[event.data[10]]);
+			console.log('    RevTime:', event.data[11] / 10, 'seconds');
+			console.log('    Predelay:', event.data[12], 'ms');
+			console.log('    Byte 13 (Low cut):', event.data[13], '(0 = flat ?)');
+			console.log('    Byte 14 (Hi cut):', event.data[14], '(6 = 2.00 kHz ?)');
+			console.log('    Diffusion:', event.data[15]);
+			console.log('    Effect level:', event.data[16]);
+			console.log('    Direct level:', event.data[17]);
+			break;
+
+		default:
+			break;
 	}
 }
 
