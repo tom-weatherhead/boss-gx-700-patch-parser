@@ -153,19 +153,34 @@ function onMIDIMessage(event) {
 		return;
 	}
 
+	const compressorTypes = ['Compressor', 'Limiter'];
+
 	const distortionTypes = ['Vintage OD', 'Turbo OD', 'Blues', 'Distortion', 'Turbo DS', 'Metal', 'Fuzz'];
+
+	const modulationTypes = ['Flanger', 'Phaser', 'Pitch Shifter', 'Harmonist', 'Vibrato', 'Ring Modulator', 'Humanizer'];
+
+	const pitchShifterTypes = ['Slow', 'Fast', 'Mono'];
+
+	const delayModes = ['Normal', 'Tempo'];
+
+	const delayIntervalCValues = ['1/4', '1/3', '3/8', '1/2', '2/3', '3/4', '1.0', '1.5', '2.0', '3.0', '4.0'];
 
 	const reverbTypes = ['Room1', 'Room2', 'Hall1', 'Hall2', 'Plate'];
 
 	switch (messageNum) {
 		case 1:		// Compression - 19 bytes
-			console.log('    Byte 10:', event.data[10]);
-			console.log('    Byte 11:', event.data[11]);
-			console.log('    Byte 12:', event.data[12]);
-			console.log('    Byte 13:', event.data[13]);
-			console.log('    Byte 14:', event.data[14]);
-			console.log('    Byte 15:', event.data[15]);
-			console.log('    Byte 16:', event.data[16]);
+			console.log('    Compressor type:', compressorTypes[event.data[10]]);
+
+			if (event.data[10] == 0) {
+				console.log('    Sustain:', event.data[11]);
+				console.log('    Attack:', event.data[12]);
+			} else if (event.data[10] == 1) {
+				console.log('    Threshold:', event.data[13]);
+				console.log('    Release:', event.data[14]);
+			}
+
+			console.log('    Tone:', event.data[15] - 50);
+			console.log('    Effect level:', event.data[16]);
 			break;
 
 		case 2:		// Wah - 24 bytes
@@ -210,15 +225,19 @@ function onMIDIMessage(event) {
 			break;
 
 		case 6:		// Equalization - 18 bytes
-			console.log('    Byte 10:', event.data[10]);
-			console.log('    Byte 11:', event.data[11]);
-			console.log('    Byte 12:', event.data[12]);
-			console.log('    Byte 13:', event.data[13]);
-			console.log('    Byte 14:', event.data[14]);
-			console.log('    Byte 15:', event.data[15]);
+			console.log('    Low Gain:', event.data[10] - 20);
+			console.log('    Byte 11:', event.data[11], '(related to Middle Frequency: From 100 Hz to 10.0 kHz ?)');
+			console.log('    Middle Gain:', event.data[12] - 20);
+			console.log('    Byte 13:', event.data[13], '(related to Middle Q: From 0.5 to 16 ?)');
+			console.log('    High Gain:', event.data[14] - 20);
+			console.log('    Level:', event.data[15] - 20);
 			break;
 
 		case 7:		// Speaker Simulation - 16 bytes
+			// - Type: ['Small', 'Middle', 'JC-120', 'Built-In 1-4', 'BG Stack 1-2', 'MS Stack 1-2', 'Metal Stack'];
+			// - Mic setting: From 1 to 10
+			// - Mic level: [1 ... 100]
+			// - Direct level: [1 ... 100]
 			console.log('    Byte 10:', event.data[10]);
 			console.log('    Byte 11:', event.data[11]);
 			console.log('    Byte 12:', event.data[12]);
@@ -234,29 +253,96 @@ function onMIDIMessage(event) {
 
 		case 9:		// Modulation - 88 bytes
 			console.log('    Modulation - 88 bytes, 76 of which describe the modulation settings');
+
+			console.log('    Modulation mode:', modulationTypes[event.data[10]]);
+
+			if (event.data[10] == 0) {
+				// Flanger
+			} else if (event.data[10] == 1) {
+				// Phaser
+			} else if (event.data[10] == 2) {
+				// Pitch shifter
+
+				// (What about Bytes 38-41 ? Used for type Slow or Mono?)
+
+				console.log('    Type:', pitchShifterTypes[event.data[31]]);
+
+				// Voice 1
+				console.log('    Pitch[1]:', event.data[32] - 24);
+				console.log('    Fine[1]:', event.data[35] - 50);
+				console.log(`    Pan[1]: L${event.data[42]}:${100 - event.data[42]}R`);
+				console.log('    Level[1]:', event.data[45]);
+
+				// Voice 2
+				console.log('    Pitch[2]:', event.data[33] - 24);
+				console.log('    Fine[2]:', event.data[36] - 50);
+				console.log(`    Pan[2]: L${event.data[43]}:${100 - event.data[43]}R`);
+				console.log('    Level[2]:', event.data[46]);
+
+				// Voice 3
+				console.log('    Pitch[3]:', event.data[34] - 24);
+				console.log('    Fine[3]:', event.data[37] - 50);
+				console.log(`    Pan[3]: L${event.data[44]}:${100 - event.data[44]}R`);
+				console.log('    Level[3]:', event.data[47]);
+
+				console.log(`    Balance: D${event.data[48]}:${100 - event.data[48]}E`);
+				console.log('    Total level:', event.data[49]);
+			} else if (event.data[10] == 3) {
+				// Harmonist
+			} else if (event.data[10] == 4) {
+				// Vibrato
+			} else if (event.data[10] == 5) {
+				// Ring modulator
+			} else if (event.data[10] == 6) {
+				// Humanizer
+			}
+
 			break;
 
 		case 10:	// Delay - 32 bytes
-			console.log('    Byte 10:', event.data[10]);
+
+			console.log('    Delay mode:', delayModes[event.data[10]]);
+			// Tempo In? : Fixed, Control 1-2, FC-200CTL, MIDI C#1-31, 64-95
+			// Tempo (used when Tempo In = Fixed) : Quarter note = [50 ... 300] per minute?
+			// Delay Interval[C] : From 1/4 to 4
+			//   -> Byte 13?
+			//   - Values 1/4, 1/3, 3/8, 1/2, 2/3, 3/4, 1, 1.5, 2, 3, 4
+			// Delay Interval[L] : From 1% to 400%
+			// Delay Interval[R] : From 1% to 400%
+
 			console.log('    Byte 11:', event.data[11]);
 			console.log('    Byte 12:', event.data[12]);
 			console.log('    Byte 13:', event.data[13]);
 			console.log('    Byte 14:', event.data[14]);
 			console.log('    Byte 15:', event.data[15]);
-			console.log('    Byte 16:', event.data[16]);
-			console.log('    Byte 17:', event.data[17]);
-			console.log('    Byte 18:', event.data[18]);
-			console.log('    Byte 19:', event.data[19]);
+
+			if (event.data[10] == 0) {
+				// Delay mode: Normal
+
+				// Delay Time[C]: in ms = ? * 256 + event.data[15] ?
+				console.log('    Delay Time[C]: ?');
+				console.log(`    Delay Time[L]: ${event.data[16] * 256 + event.data[17]} %`);
+				console.log(`    Delay Time[R]: ${event.data[18] * 256 + event.data[19]} %`);
+			} else if (event.data[10] == 1) {
+				// Delay mode: Tempo
+
+				console.log('    Byte 11:', event.data[11], '(Tempo In? 0 = Fixed?)');
+				console.log('    Tempo: ?');
+				console.log('    Delay Interval[C]:', delayIntervalCValues[event.data[13]]);
+				console.log('    Delay Interval[L]: ?');
+				console.log('    Delay Interval[R]: ?');
+			}
+
 			console.log('    Byte 20:', event.data[20]);
-			console.log('    Byte 21:', event.data[21]);
-			console.log('    Byte 22:', event.data[22]);
-			console.log('    Byte 23:', event.data[23]);
-			console.log('    Byte 24:', event.data[24]);
-			console.log('    Byte 25:', event.data[25]);
-			console.log('    Byte 26:', event.data[26]);
-			console.log('    Byte 27:', event.data[27]);
-			console.log('    Byte 28:', event.data[28]);
-			console.log('    Byte 29:', event.data[29]);
+			console.log('    Feedback:', event.data[21]);
+			console.log('    Level[C]:', event.data[22]);
+			console.log('    Level[L]:', event.data[23]);
+			console.log('    Level[R]:', event.data[24]);
+			console.log('    Hi Damp:', event.data[25] - 50);
+			console.log('    Byte 26:', event.data[26], '(Hi Cut? 0x0F = flat?)');
+			console.log('    Byte 27:', event.data[27], '(Smooth? 0 = off, 1 = on?)');
+			console.log('    Effect level:', event.data[28]);
+			console.log('    Direct level:', event.data[29]);
 			break;
 
 		case 11:	// Chorus - 20 bytes
