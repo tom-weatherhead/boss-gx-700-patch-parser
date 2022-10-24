@@ -155,15 +155,35 @@ function onMIDIMessage(event) {
 
 	const compressorTypes = ['Compressor', 'Limiter'];
 
+	// FIXED, EXP PEDAL, FC-200EXP, MIDI C#1-31, 64-95
+	const pedals = ['Fixed', 'Expression Pedal', 'FC-200EXP'];
+
+	const polarities = ['Down', 'Up'];
+
 	const distortionTypes = ['Vintage OD', 'Turbo OD', 'Blues', 'Distortion', 'Turbo DS', 'Metal', 'Fuzz'];
 
+	const preamps = ['JC-120', 'Clean Twin', 'Match Drive', 'BG Lead', 'MS 1959 (I)', 'MS 1959 (II)', 'MS 1959 (I + II)', 'SLDN LEAD', 'METAL 5150'];
+
+	const speakerTypes = ['Small', 'Middle', 'JC-120', 'Built-In 1', 'Built-In 2', 'Built-In 3', 'Built-In 4', 'BG Stack 1', 'BG Stack 2', 'MS Stack 1', 'MS Stack 2', 'Metal Stack'];
+
 	const modulationTypes = ['Flanger', 'Phaser', 'Pitch Shifter', 'Harmonist', 'Vibrato', 'Ring Modulator', 'Humanizer'];
+
+	const phaserTypes = ['4-stage', '6-stage', '8-stage', '10-stage', '12-stage'];
 
 	const pitchShifterTypes = ['Slow', 'Fast', 'Mono'];
 
 	const delayModes = ['Normal', 'Tempo'];
 
 	const delayIntervalCValues = ['1/4', '1/3', '3/8', '1/2', '2/3', '3/4', '1.0', '1.5', '2.0', '3.0', '4.0'];
+
+	const lowCutOptions = ['Flat', '55 Hz', '110 Hz', '165 Hz', '220 Hz', '280 Hz', '340 Hz', '400 Hz', '500 Hz', '630 Hz', '800 Hz'];
+
+	const hiCutOptions = [
+		'500 Hz', '630 Hz', '800 Hz', '1.00 kHz',
+		'1.25 kHz', '1.60 kHz', '2.00 kHz', '2.50 kHz',
+		'3.15 kHz', '4.00 kHz', '5.00 kHz', '6.30 kHz',
+		'8.00 kHz', '10.0 kHz', '12.5 kHz', 'Flat'
+	];
 
 	const reverbTypes = ['Room1', 'Room2', 'Hall1', 'Hall2', 'Plate'];
 
@@ -184,18 +204,36 @@ function onMIDIMessage(event) {
 			break;
 
 		case 2:		// Wah - 24 bytes
-			console.log('    Byte 10:', event.data[10]);
-			console.log('    Byte 11:', event.data[11]);
-			console.log('    Byte 12:', event.data[12]);
-			console.log('    Byte 13:', event.data[13]);
-			console.log('    Byte 14:', event.data[14]);
-			console.log('    Byte 15:', event.data[15]);
-			console.log('    Byte 16:', event.data[16]);
-			console.log('    Byte 17:', event.data[17]);
-			console.log('    Byte 18:', event.data[18]);
-			console.log('    Byte 19:', event.data[19]);
-			console.log('    Byte 20:', event.data[20]);
-			console.log('    Byte 21:', event.data[21]);
+			// - Mode: 'Pedal Wah', 'Sw-Pedal Wah', 'Auto Wah'
+
+			// if (mode is 'Pedal Wah' or 'Sw-Pedal Wah') {
+			if (event.data[10] == 0 || event.data[10] == 1) {
+				// - Frequency : [0 ... 100]
+				console.log('    Frequency:', event.data[11]);
+				// - Peak : [0 ... 100]
+				console.log('    Peak:', event.data[15]);
+				console.log('    Pedal:', (event.data[16] < pedals.length) ? pedals[event.data[16]] : 'MIDI'); // FIXED, EXP PEDAL, FC-200EXP, MIDI C#1-31, 64-95
+				// - Pedal Minimum : [0 ... 100]
+				console.log('    Pedal Minimum:', event.data[17]);
+				// - Pedal Maximum : [0 ... 100]
+				console.log('    Pedal Maximum:', event.data[18]);
+			// } else if (mode is 'Auto Wah') {
+			} else if (event.data[10] == 2) {
+				// - Polarity : ['Down', 'Up']
+				console.log('    Polarity:', polarities[event.data[12]]);
+				// - Sensitivity : [0 ... 100]
+				console.log('    Sensitivity:', event.data[13]);
+				// - Manual : [0 ... 100]
+				console.log('    Manual:', event.data[14]);
+				// - Peak : [0 ... 100]
+				console.log('    Peak:', event.data[15]);
+				// - Rate : [0 ... 100]
+				console.log('    Rate:', event.data[19]);
+				// - Depth : [0 ... 100]
+				console.log('    Depth:', event.data[20]);
+			}
+
+			console.log('    Level:', event.data[21]);
 			break;
 
 		case 3:		// Overdrive / Distortion - 17 bytes
@@ -207,18 +245,32 @@ function onMIDIMessage(event) {
 			break;
 
 		case 4:		// Preamp - 21 bytes
-			console.log('    Byte 10:', event.data[10]);
-			console.log('    Byte 11:', event.data[11]);
-			console.log('    Byte 12:', event.data[12]);
-			console.log('    Byte 13:', event.data[13]);
-			console.log('    Byte 14:', event.data[14]);
-			console.log('    Byte 15:', event.data[15]);
-			console.log('    Byte 16:', event.data[16]);
-			console.log('    Byte 17:', event.data[17]);
-			console.log('    Byte 18:', event.data[18]);
+			// Type : ['JC-120', 'Clean Twin', 'Match Drive', 'BG Lead', 'MS 1959 (I)', 'MS 1959 (II)', 'MS 1959 (I + II)', 'SLDN LEAD', 'METAL 5150']
+			// - Volume : [0 ... 100]
+			// - Bass : [0 ... 100]
+			// - Middle : [0 ... 100]
+			// - Treble : [0 ... 100]
+			// - Presence : [0 ... 100]
+			// - Master : [0 ... 100]
+			// - Bright : ['Off', 'On']
+			// - Gain : ['Low', 'Middle', 'High']
+
+			console.log('    Preamp type:', preamps[event.data[10]]);
+			console.log('    Volume:', event.data[11]);
+			console.log('    Bass:', event.data[12]);
+			console.log('    Middle:', event.data[13]);
+			console.log('    Treble:', event.data[14]);
+			console.log('    Presence:', event.data[15]);
+			console.log('    Master:', event.data[16]);
+			// Note: 'METAL 5150' does not have a 'Bright' setting.
+			console.log('    Bright:', ['Off', 'On'][event.data[17]]);
+			console.log('    Gain:', ['Low', 'Middle', 'High'][event.data[18]]);
 			break;
 
 		case 5:		// Loop - 15 bytes
+			// - Return Level : [0 ... 100]
+			// - Send Level : [0 ... 100]
+			// - Mode : ['Series', 'Parallel']
 			console.log('    Byte 10:', event.data[10]);
 			console.log('    Byte 11:', event.data[11]);
 			console.log('    Byte 12:', event.data[12]);
@@ -238,10 +290,10 @@ function onMIDIMessage(event) {
 			// - Mic setting: From 1 to 10
 			// - Mic level: [1 ... 100]
 			// - Direct level: [1 ... 100]
-			console.log('    Byte 10:', event.data[10]);
-			console.log('    Byte 11:', event.data[11]);
-			console.log('    Byte 12:', event.data[12]);
-			console.log('    Byte 13:', event.data[13]);
+			console.log('    Speaker type:', speakerTypes[event.data[10]]);
+			console.log('    Mic setting:', event.data[11]);
+			console.log('    Mic level:', event.data[12]);
+			console.log('    Direct level:', event.data[13]);
 			break;
 
 		case 8:		// Noise Suppression - 16 bytes
@@ -258,14 +310,36 @@ function onMIDIMessage(event) {
 
 			if (event.data[10] == 0) {
 				// Flanger
+
+				// - Rate: [0 ... 100] -> 20 = 0x14 -> Byte 17
+				console.log('    Rate:', event.data[17]);
+				// - Depth: [0 ... 100] -> 65 = 0x41 -> Byte 18
+				console.log('    Depth:', event.data[18]);
+				// - Manual: [0 ... 100] -> 75 = 0x4B -> Byte 19
+				console.log('    Manual:', event.data[19]);
+				// - Resonance: [-100 ... +100] -> +50
+				console.log('    Resonance:', '?');
+				// - Separation: [-100 ... +100] -> +1
+				console.log('    Separation:', '?');
+				// - Gate: Off, [1 ... 100] -> Off
+				console.log('    Gate:', '?');
 			} else if (event.data[10] == 1) {
 				// Phaser
+
+				phaserTypes;
+
+				console.log('    Phaser type:', '?'); // phaserTypes[]
+				console.log('    Rate:', event.data[17]);
+				console.log('    Depth:', event.data[18]);
+				console.log('    Manual:', event.data[19]);
+				console.log('    Resonance:', '?'); // [-100 ... +100]
+				console.log('    Step:', '?'); // Off, [1 ... 100]
 			} else if (event.data[10] == 2) {
 				// Pitch shifter
 
 				// (What about Bytes 38-41 ? Used for type Slow or Mono?)
 
-				console.log('    Type:', pitchShifterTypes[event.data[31]]);
+				console.log('    Pitch shifter type:', pitchShifterTypes[event.data[31]]);
 
 				// Voice 1
 				console.log('    Pitch[1]:', event.data[32] - 24);
@@ -289,12 +363,47 @@ function onMIDIMessage(event) {
 				console.log('    Total level:', event.data[49]);
 			} else if (event.data[10] == 3) {
 				// Harmonist
+
+				// - Key: [
+				//   'C maj', 'Db maj', 'D maj', 'Eb maj', 'E maj', 'F maj',
+				//   'F# (Gb) maj', 'G maj', 'Ab maj', 'A maj', 'Bb maj', 'B maj',
+				//   'A min', 'Bb min', 'B min', 'C min', 'C# min', 'D min',
+				//   'D# (Eb) min', 'E min', 'F min', 'F# min', 'G min', 'G# min'
+				// ]
+				// - Interval [1-3] : From 2 octaves down to 2 octaves up: 29 options: ['-2 octaves', ..., 'Unity', '+ 2nd', '+ 3rd', ..., '+ Octave', '+ 2nd above Octave (9th?)', ... '+ 7th above Octave', '+2 octaves']
+				// - Pan [1-3] : R = [0 ... 100], L = 100 - R
+				// - Level [1-3] : [0 ... 100]
+				// - Balance : E = [0 ... 100], D = 100 - E
+				// - Total level : [0 ... 100]
 			} else if (event.data[10] == 4) {
 				// Vibrato
+
+				// Note (by ThAW): Vibrato is an effect that creates a cyclic change in pitch (?)
+
+				console.log('    Trigger:', '?'); // ['Off', 'On', 'Auto']
+				console.log('    Rise time:', event.data[13]); // [0 ... 100]
+				console.log('    Rate:', event.data[17]); // [0 ... 100]
+				console.log('    Depth:', event.data[18]); // [0 ... 100]
 			} else if (event.data[10] == 5) {
 				// Ring modulator
+
+				console.log('    Frequency:', (event.data[28] == 0) ? 'Intelligent' : event.data[28]); // [Intelligent, 1 ... 100]
+				console.log('    Effect Level:', event.data[29]); // [0 ... 100]
+				console.log('    Direct Level:', event.data[30]); // [0 ... 100]
 			} else if (event.data[10] == 6) {
 				// Humanizer
+
+				console.log('    Humanizer type:', '?'); // ['Auto', 'Pedal']
+				console.log('    Vowel 1:', '?'); // ['a', 'e', 'i', 'o', 'u']
+				console.log('    Vowel 2:', '?'); // ['a', 'e', 'i', 'o', 'u']
+
+				// if (Humanizer type is Auto) {
+				console.log('    Rate:', '?'); // [0 ... 100]
+				console.log('    Depth:', '?'); // [0 ... 100]
+				console.log('    Trigger:', '?'); // ['Off', 'Auto']
+				// } else if (Humanizer type is Pedal) {
+				console.log('    Pedal:', '?'); // EXP PEDAL, FC-200EXP, MIDI C#1-31, 64-95
+				// }
 			}
 
 			break;
@@ -349,14 +458,22 @@ function onMIDIMessage(event) {
 			console.log('    Byte 10:', event.data[10], '(Mode? (0 = mono, 1 = stereo ?))');
 			console.log('    Rate:', event.data[11]);
 			console.log('    Depth:', event.data[12]);
-			console.log('    Byte 13:', event.data[13]);
-			console.log('    Byte 14:', event.data[14]);
-			console.log('    Byte 15:', event.data[15]);
-			console.log('    Byte 16:', event.data[16]);
+			console.log('    Predelay:', event.data[13] * 0.5, 'ms');
+			// Low cut options: Flat, 55 Hz, 110 Hz, 165, 220 280 340 400 500 630 800
+			console.log('    Low cut:', lowCutOptions[event.data[14]]);
+			// Hi cut options: 500 630 800 1.00k 1.25k 1.60k 2.00k 2.50k 3.15k 4.00k 5.00k 6.30k 8.00k 10.0k 12.5k, Flat
+			console.log('    Hi cut:', hiCutOptions[event.data[15]]);
+			console.log(`    LFO: tri${10 - event.data[16]}:sin${event.data[16]}`);
 			console.log('    Effect level:', event.data[17]);
 			break;
 
 		case 12:	// Tremolo / Panning - 16 bytes
+			// Note: Tremolo is an effect that creates a cyclic change in volume
+
+			// - Mode : ['Tremolo - Triangular Wave', 'Tremolo - Square Wave', 'Pan - Triangular Wave', 'Pan - Square Wave', ]
+			// - Rate : [0 ... 100]
+			// - Depth : [0 ... 100]
+			// - Balance : R = [0 ... 100], L = 100 - R
 			console.log('    Byte 10:', event.data[10]);
 			console.log('    Byte 11:', event.data[11]);
 			console.log('    Byte 12:', event.data[12]);
