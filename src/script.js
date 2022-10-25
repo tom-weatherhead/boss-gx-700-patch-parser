@@ -60,13 +60,13 @@ function listInputsAndOutputs(midiAccess) {
 // This example prints incoming MIDI messages on a single port to the console.
 
 function onMIDIMessage(event) {
-	let str = `MIDI message received at timestamp ${event.timeStamp}[${event.data.length} bytes]: `;
-
-	for (const character of event.data) {
-		str += `0x${character.toString(16)} `;
-	}
-
-	console.log(str);
+	// let str = `MIDI message received at timestamp ${event.timeStamp}[${event.data.length} bytes]: `;
+	//
+	// for (const character of event.data) {
+	// 	str += `0x${character.toString(16)} `;
+	// }
+	//
+	// console.log(str);
 
 	// Does the message begin with 0xf0 0x41 0x0 0x79 0x12 0x0 ?
 
@@ -102,9 +102,9 @@ function onMIDIMessage(event) {
 		'Reverb'
 	];
 
-	console.log('GX-700 SysEx message');
-	console.log('  Patch number', patchNum);
-	console.log('  Patch message', messageNum);
+	// console.log('GX-700 SysEx message');
+	// console.log('  Patch number', patchNum);
+	// console.log('  Patch message', messageNum);
 
 	if (messageNum >= expectedMessageLengths.length) {
 		console.error('**** Bad message number ****');
@@ -112,14 +112,10 @@ function onMIDIMessage(event) {
 	} else if (event.data.length != expectedMessageLengths[messageNum]) {
 		console.error('**** Bad message length ****');
 		return;
-	}
-
-	if (event.data[event.data.length - 1] != 0xf7) {
+	} else if (event.data[event.data.length - 1] != 0xf7) {
 		console.error('**** Last byte in message is not 0xf7 ****');
 		return;
-	}
-
-	if (messageNum == 0) {
+	} else if (messageNum == 0) {
 		// Handle the patch's header message.
 
 		// The patch name is 12 characters long.
@@ -133,25 +129,24 @@ function onMIDIMessage(event) {
 		// ... followed by a checksum byte (?), followed by the terminating 0xf7
 
 		return;
-	}
-
-	if (event.data[8] != 0) {
+	} else if (event.data[8] != 0) {
 		console.error('**** event.data[8] != 0 ****');
 		return;
-	}
-
-	if (event.data[9] != 0 && event.data[9] != 1) {
+	} else if (event.data[9] != 0 && event.data[9] != 1) {
 		console.error('**** event.data[9] (patch section enabled/disabled) is neither zero nor one ****');
 		return;
 	}
 
 	const patchSectionEnabled = event.data[9] != 0;
 
-	console.log('  Patch number', patchNum, '-', patchSectionNames[messageNum], '-', patchSectionEnabled ? 'Enabled' : 'Disabled');
+	// console.log('  Patch number', patchNum, '-', patchSectionNames[messageNum], '-', patchSectionEnabled ? 'Enabled' : 'Disabled');
 
 	if (!patchSectionEnabled) {
+		console.log(`  (${patchSectionNames[messageNum]} is disabled)`);
 		return;
 	}
+
+	console.log('  Patch number', patchNum, '-', patchSectionNames[messageNum]);
 
 	const compressorTypes = ['Compressor', 'Limiter'];
 
@@ -455,7 +450,7 @@ function onMIDIMessage(event) {
 			break;
 
 		case 11:	// Chorus - 20 bytes
-			console.log('    Byte 10:', event.data[10], '(Mode? (0 = mono, 1 = stereo ?))');
+			console.log('    Chorus mode:', ['Mono', 'Stereo'][event.data[10]]);
 			console.log('    Rate:', event.data[11]);
 			console.log('    Depth:', event.data[12]);
 			console.log('    Predelay:', event.data[13] * 0.5, 'ms');
@@ -484,8 +479,12 @@ function onMIDIMessage(event) {
 			console.log('    Reverb type:', reverbTypes[event.data[10]]);
 			console.log('    RevTime:', event.data[11] / 10, 'seconds');
 			console.log('    Predelay:', event.data[12], 'ms');
-			console.log('    Byte 13 (Low cut):', event.data[13], '(0 = flat ?)');
-			console.log('    Byte 14 (Hi cut):', event.data[14], '(6 = 2.00 kHz ?)');
+			// console.log('    Byte 13 (Low cut):', event.data[13], '(0 = flat ?)');
+			// console.log('    Byte 14 (Hi cut):', event.data[14], '(6 = 2.00 kHz ?)');
+			// Low cut options: Flat, 55 Hz, 110 Hz, 165, 220 280 340 400 500 630 800
+			console.log('    Low cut:', lowCutOptions[event.data[13]]);
+			// Hi cut options: 500 630 800 1.00k 1.25k 1.60k 2.00k 2.50k 3.15k 4.00k 5.00k 6.30k 8.00k 10.0k 12.5k, Flat
+			console.log('    Hi cut:', hiCutOptions[event.data[14]]);
 			console.log('    Diffusion:', event.data[15]);
 			console.log('    Effect level:', event.data[16]);
 			console.log('    Direct level:', event.data[17]);
