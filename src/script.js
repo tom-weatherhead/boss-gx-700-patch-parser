@@ -55,6 +55,16 @@ function listInputsAndOutputs(midiAccess) {
 	}
 }
 
+function signed(n) {
+	let str = '';
+
+	if (n > 0) {
+		str = '+';
+	}
+
+	return `${str}${n}`;
+}
+
 // Handling MIDI Input
 //
 // This example prints incoming MIDI messages on a single port to the console.
@@ -159,6 +169,10 @@ function onMIDIMessage(event) {
 
 	const preamps = ['JC-120', 'Clean Twin', 'Match Drive', 'BG Lead', 'MS 1959 (I)', 'MS 1959 (II)', 'MS 1959 (I + II)', 'SLDN LEAD', 'METAL 5150'];
 
+	const eqMidFreqs = ['100 Hz', '125 Hz', '160 Hz', '200 Hz', '250 Hz', '315 Hz', '400 Hz', '500 Hz', '630 Hz', '800 Hz', '1.00 kHz', '1.25 kHz', '1.60 kHz', '2.00 kHz', '2.50 kHz', '3.15 kHz', '4.00 kHz', '5.00 kHz', '6.30 kHz', '8.00 kHz', '10.0 kHz'];
+
+	const eqMidQ = ['0.5', '1', '2', '4', '8', '16'];
+
 	const speakerTypes = ['Small', 'Middle', 'JC-120', 'Built-In 1', 'Built-In 2', 'Built-In 3', 'Built-In 4', 'BG Stack 1', 'BG Stack 2', 'MS Stack 1', 'MS Stack 2', 'Metal Stack'];
 
 	const modulationTypes = ['Flanger', 'Phaser', 'Pitch Shifter', 'Harmonist', 'Vibrato', 'Ring Modulator', 'Humanizer'];
@@ -241,22 +255,14 @@ function onMIDIMessage(event) {
 
 		case 4:		// Preamp - 21 bytes
 			// Type : ['JC-120', 'Clean Twin', 'Match Drive', 'BG Lead', 'MS 1959 (I)', 'MS 1959 (II)', 'MS 1959 (I + II)', 'SLDN LEAD', 'METAL 5150']
-			// - Volume : [0 ... 100]
-			// - Bass : [0 ... 100]
-			// - Middle : [0 ... 100]
-			// - Treble : [0 ... 100]
-			// - Presence : [0 ... 100]
-			// - Master : [0 ... 100]
-			// - Bright : ['Off', 'On']
-			// - Gain : ['Low', 'Middle', 'High']
 
 			console.log('    Preamp type:', preamps[event.data[10]]);
-			console.log('    Volume:', event.data[11]);
-			console.log('    Bass:', event.data[12]);
-			console.log('    Middle:', event.data[13]);
-			console.log('    Treble:', event.data[14]);
-			console.log('    Presence:', event.data[15]);
-			console.log('    Master:', event.data[16]);
+			console.log('    Volume:', event.data[11]); // [0 ... 100]
+			console.log('    Bass:', event.data[12]); // [0 ... 100]
+			console.log('    Middle:', event.data[13]); // [0 ... 100]
+			console.log('    Treble:', event.data[14]); // [0 ... 100]
+			console.log('    Presence:', event.data[15]); // [0 ... 100]
+			console.log('    Master:', event.data[16]); // [0 ... 100]
 			// Note: 'METAL 5150' does not have a 'Bright' setting.
 			console.log('    Bright:', ['Off', 'On'][event.data[17]]);
 			console.log('    Gain:', ['Low', 'Middle', 'High'][event.data[18]]);
@@ -266,18 +272,20 @@ function onMIDIMessage(event) {
 			// - Return Level : [0 ... 100]
 			// - Send Level : [0 ... 100]
 			// - Mode : ['Series', 'Parallel']
-			console.log('    Byte 10:', event.data[10]);
-			console.log('    Byte 11:', event.data[11]);
-			console.log('    Byte 12:', event.data[12]);
+			console.log('    Byte 10 (Return Level?):', event.data[10]);
+			console.log('    Byte 11 (Send Level?):', event.data[11]);
+			console.log('    Byte 12 (Mode? 0 = Series, 1 = Parallel?):', event.data[12]);
 			break;
 
 		case 6:		// Equalization - 18 bytes
-			console.log('    Low Gain:', event.data[10] - 20);
-			console.log('    Byte 11:', event.data[11], '(related to Middle Frequency: From 100 Hz to 10.0 kHz ?)');
-			console.log('    Middle Gain:', event.data[12] - 20);
-			console.log('    Byte 13:', event.data[13], '(related to Middle Q: From 0.5 to 16 ?)');
-			console.log('    High Gain:', event.data[14] - 20);
-			console.log('    Level:', event.data[15] - 20);
+			console.log('    Low Gain:', signed(event.data[10] - 20), 'dB');
+			// console.log('    Byte 11:', event.data[11], '(related to Middle Frequency: From 100 Hz to 10.0 kHz ?)');
+			console.log('    Middle Frequency:', eqMidFreqs[event.data[11]]);
+			console.log('    Middle Gain:', signed(event.data[12] - 20), 'dB');
+			// console.log('    Byte 13:', event.data[13], '(related to Middle Q: From 0.5 to 16 ?)');
+			console.log('    Middle Q:', eqMidQ[event.data[13]]);
+			console.log('    High Gain:', signed(event.data[14] - 20), 'dB');
+			console.log('    Level:', signed(event.data[15] - 20), 'dB');
 			break;
 
 		case 7:		// Speaker Simulation - 16 bytes
@@ -417,21 +425,18 @@ function onMIDIMessage(event) {
 			console.log('    Byte 11:', event.data[11]);
 			console.log('    Byte 12:', event.data[12]);
 			console.log('    Byte 13:', event.data[13]);
-			console.log('    Byte 14:', event.data[14]);
-			console.log('    Byte 15:', event.data[15]);
 
 			if (event.data[10] == 0) {
 				// Delay mode: Normal
 
-				// Delay Time[C]: in ms = ? * 256 + event.data[15] ?
-				console.log('    Delay Time[C]: ?');
+				console.log(`    Delay Time[C]: ${event.data[14] * 128 + event.data[15]} ms`);
 				console.log(`    Delay Time[L]: ${event.data[16] * 256 + event.data[17]} %`);
 				console.log(`    Delay Time[R]: ${event.data[18] * 256 + event.data[19]} %`);
 			} else if (event.data[10] == 1) {
 				// Delay mode: Tempo
 
 				console.log('    Byte 11:', event.data[11], '(Tempo In? 0 = Fixed?)');
-				console.log('    Tempo: ?');
+				console.log('    Tempo (Byte 12?): ?');
 				console.log('    Delay Interval[C]:', delayIntervalCValues[event.data[13]]);
 				console.log('    Delay Interval[L]: ?');
 				console.log('    Delay Interval[R]: ?');
@@ -443,7 +448,8 @@ function onMIDIMessage(event) {
 			console.log('    Level[L]:', event.data[23]);
 			console.log('    Level[R]:', event.data[24]);
 			console.log('    Hi Damp:', event.data[25] - 50);
-			console.log('    Byte 26:', event.data[26], '(Hi Cut? 0x0F = flat?)');
+			// console.log('    Byte 26:', event.data[26], '(Hi Cut? 0x0F = flat?)');
+			console.log('    Hi cut:', hiCutOptions[event.data[26]]);
 			console.log('    Byte 27:', event.data[27], '(Smooth? 0 = off, 1 = on?)');
 			console.log('    Effect level:', event.data[28]);
 			console.log('    Direct level:', event.data[29]);
