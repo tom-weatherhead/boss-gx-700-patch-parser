@@ -12,20 +12,13 @@
 //
 // https://extensionworkshop.com/documentation/publish/site-permission-add-on/
 
+let debugMessages = [];
+
 // Listing inputs and outputs
 
 // In this example the list of input and output ports are retrieved and printed to the console.
 
 function listInputsAndOutputs(midiAccess) {
-	// console.log('typeof midiAccess:', typeof midiAccess);
-	// console.log('midiAccess:', midiAccess);
-	//
-	// console.log('typeof midiAccess.inputs:', typeof midiAccess.inputs);
-	// console.log('midiAccess.inputs:', midiAccess.inputs);
-	//
-	// console.log('typeof midiAccess.outputs:', typeof midiAccess.outputs);
-	// console.log('midiAccess.outputs:', midiAccess.outputs);
-
 	console.log(`MIDI: ${midiAccess.inputs.size} input port(s) and ${midiAccess.outputs.size} output port(s) detected.`);
 
 	for (const entry of midiAccess.inputs) {
@@ -66,8 +59,6 @@ function signed(n) {
 }
 
 // Handling MIDI Input
-//
-// This example prints incoming MIDI messages on a single port to the console.
 
 function onMIDIMessage(event) {
 	// let str = `MIDI message received at timestamp ${event.timeStamp}[${event.data.length} bytes]: `;
@@ -88,7 +79,7 @@ function onMIDIMessage(event) {
 		event.data[4] != 0x12 ||
 		event.data[5] != 0
 	) {
-		console.error('**** Expected message header not found ****');
+		console.error('**** Expected Boss GX-700 message header not found ****');
 		return;
 	}
 
@@ -129,7 +120,7 @@ function onMIDIMessage(event) {
 		// Handle the patch's header message.
 
 		// The patch name is 12 characters long.
-		console.log('  Patch name:', new TextDecoder().decode(event.data.slice(23, 35)));
+		console.log('\n  Patch name:', new TextDecoder().decode(event.data.slice(23, 35)));
 
 		// Bytes 35-74 should be:
 		// 03 07 00 00 00 64 00 00 00 7F 03 07 00 00 00 64
@@ -160,8 +151,10 @@ function onMIDIMessage(event) {
 
 	const compressorTypes = ['Compressor', 'Limiter'];
 
-	// FIXED, EXP PEDAL, FC-200EXP, MIDI C#1-31, 64-95
-	const pedals = ['Fixed', 'Expression Pedal', 'FC-200EXP'];
+	const pedals = ['Expression Pedal', 'FC-200EXP']; // ... MIDI C#1-31, 64-95
+
+	const pedalsForWah = ['Fixed', 'Expression Pedal', 'FC-200EXP']; // ... MIDI C#1-31, 64-95
+	// TODO: const pedalsForWah = ['Fixed', ...pedals];
 
 	const polarities = ['Down', 'Up'];
 
@@ -181,6 +174,8 @@ function onMIDIMessage(event) {
 
 	const pitchShifterTypes = ['Slow', 'Fast', 'Mono'];
 
+	const vowels = ['a', 'e', 'i', 'o', 'u'];
+
 	const delayModes = ['Normal', 'Tempo'];
 
 	const delayIntervalCValues = ['1/4', '1/3', '3/8', '1/2', '2/3', '3/4', '1.0', '1.5', '2.0', '3.0', '4.0'];
@@ -194,6 +189,11 @@ function onMIDIMessage(event) {
 		'8.00 kHz', '10.0 kHz', '12.5 kHz', 'Flat'
 	];
 
+	const tremPanTypes = [
+		'Tremolo - Triangular Wave', 'Tremolo - Square Wave',
+		'Pan - Triangular Wave', 'Pan - Square Wave'
+	];
+
 	const reverbTypes = ['Room1', 'Room2', 'Hall1', 'Hall2', 'Plate'];
 
 	switch (messageNum) {
@@ -201,15 +201,15 @@ function onMIDIMessage(event) {
 			console.log('    Compressor type:', compressorTypes[event.data[10]]);
 
 			if (event.data[10] == 0) {
-				console.log('    Sustain:', event.data[11]);
-				console.log('    Attack:', event.data[12]);
+				console.log('    Sustain:', event.data[11]); // [0 ... 100]
+				console.log('    Attack:', event.data[12]); // [0 ... 100]
 			} else if (event.data[10] == 1) {
-				console.log('    Threshold:', event.data[13]);
-				console.log('    Release:', event.data[14]);
+				console.log('    Threshold:', event.data[13]); // [0 ... 100]
+				console.log('    Release:', event.data[14]); // [0 ... 100]
 			}
 
-			console.log('    Tone:', event.data[15] - 50);
-			console.log('    Effect level:', event.data[16]);
+			console.log('    Tone:', signed(event.data[15] - 50)); // [-50 ... +50]
+			console.log('    Effect level:', event.data[16]); // [0 ... 100]
 			break;
 
 		case 2:		// Wah - 24 bytes
@@ -217,40 +217,30 @@ function onMIDIMessage(event) {
 
 			// if (mode is 'Pedal Wah' or 'Sw-Pedal Wah') {
 			if (event.data[10] == 0 || event.data[10] == 1) {
-				// - Frequency : [0 ... 100]
-				console.log('    Frequency:', event.data[11]);
-				// - Peak : [0 ... 100]
-				console.log('    Peak:', event.data[15]);
-				console.log('    Pedal:', (event.data[16] < pedals.length) ? pedals[event.data[16]] : 'MIDI'); // FIXED, EXP PEDAL, FC-200EXP, MIDI C#1-31, 64-95
-				// - Pedal Minimum : [0 ... 100]
-				console.log('    Pedal Minimum:', event.data[17]);
-				// - Pedal Maximum : [0 ... 100]
-				console.log('    Pedal Maximum:', event.data[18]);
+				console.log('    Frequency:', event.data[11]); // [0 ... 100]
+				console.log('    Peak:', event.data[15]); // [0 ... 100]
+				console.log('    Pedal:', (event.data[16] < pedalsForWah.length) ? pedalsForWah[event.data[16]] : 'MIDI'); // FIXED, EXP PEDAL, FC-200EXP, MIDI C#1-31, 64-95
+				console.log('    Pedal Minimum:', event.data[17]); // [0 ... 100]
+				console.log('    Pedal Maximum:', event.data[18]); // [0 ... 100]
 			// } else if (mode is 'Auto Wah') {
 			} else if (event.data[10] == 2) {
-				// - Polarity : ['Down', 'Up']
-				console.log('    Polarity:', polarities[event.data[12]]);
-				// - Sensitivity : [0 ... 100]
-				console.log('    Sensitivity:', event.data[13]);
-				// - Manual : [0 ... 100]
-				console.log('    Manual:', event.data[14]);
-				// - Peak : [0 ... 100]
-				console.log('    Peak:', event.data[15]);
-				// - Rate : [0 ... 100]
-				console.log('    Rate:', event.data[19]);
-				// - Depth : [0 ... 100]
-				console.log('    Depth:', event.data[20]);
+				console.log('    Polarity:', polarities[event.data[12]]); // ['Down', 'Up']
+				console.log('    Sensitivity:', event.data[13]); // [0 ... 100]
+				console.log('    Manual:', event.data[14]); // [0 ... 100]
+				console.log('    Peak:', event.data[15]); // [0 ... 100]
+				console.log('    Rate:', event.data[19]); // [0 ... 100]
+				console.log('    Depth:', event.data[20]); // [0 ... 100]
 			}
 
-			console.log('    Level:', event.data[21]);
+			console.log('    Effect level:', event.data[21]); // [0 ... 100]
 			break;
 
 		case 3:		// Overdrive / Distortion - 17 bytes
 			console.log('    Distortion type:', distortionTypes[event.data[10]]);
-			console.log('    Drive:', event.data[11]);
-			console.log('    Bass:', event.data[12] - 50);
-			console.log('    Treble:', event.data[13] - 50);
-			console.log('    Effect level:', event.data[14]);
+			console.log('    Drive:', event.data[11]); // [0 ... 100]
+			console.log('    Bass:', signed(event.data[12] - 50)); // [-50 ... +50]
+			console.log('    Treble:', signed(event.data[13] - 50)); // [-50 ... +50]
+			console.log('    Effect level:', event.data[14]); // [0 ... 100]
 			break;
 
 		case 4:		// Preamp - 21 bytes
@@ -269,20 +259,15 @@ function onMIDIMessage(event) {
 			break;
 
 		case 5:		// Loop - 15 bytes
-			// - Return Level : [0 ... 100]
-			// - Send Level : [0 ... 100]
-			// - Mode : ['Series', 'Parallel']
-			console.log('    Byte 10 (Return Level?):', event.data[10]);
-			console.log('    Byte 11 (Send Level?):', event.data[11]);
+			console.log('    Byte 10 (Return Level? [0% ... 100%]):', event.data[10]);
+			console.log('    Byte 11 (Send Level? [0% ... 100%]):', event.data[11]);
 			console.log('    Byte 12 (Mode? 0 = Series, 1 = Parallel?):', event.data[12]);
 			break;
 
 		case 6:		// Equalization - 18 bytes
 			console.log('    Low Gain:', signed(event.data[10] - 20), 'dB');
-			// console.log('    Byte 11:', event.data[11], '(related to Middle Frequency: From 100 Hz to 10.0 kHz ?)');
 			console.log('    Middle Frequency:', eqMidFreqs[event.data[11]]);
 			console.log('    Middle Gain:', signed(event.data[12] - 20), 'dB');
-			// console.log('    Byte 13:', event.data[13], '(related to Middle Q: From 0.5 to 16 ?)');
 			console.log('    Middle Q:', eqMidQ[event.data[13]]);
 			console.log('    High Gain:', signed(event.data[14] - 20), 'dB');
 			console.log('    Level:', signed(event.data[15] - 20), 'dB');
@@ -290,53 +275,51 @@ function onMIDIMessage(event) {
 
 		case 7:		// Speaker Simulation - 16 bytes
 			// - Type: ['Small', 'Middle', 'JC-120', 'Built-In 1-4', 'BG Stack 1-2', 'MS Stack 1-2', 'Metal Stack'];
-			// - Mic setting: From 1 to 10
-			// - Mic level: [1 ... 100]
-			// - Direct level: [1 ... 100]
 			console.log('    Speaker type:', speakerTypes[event.data[10]]);
-			console.log('    Mic setting:', event.data[11]);
-			console.log('    Mic level:', event.data[12]);
-			console.log('    Direct level:', event.data[13]);
+			console.log('    Mic setting:', event.data[11]); // [1 ... 10]
+			console.log('    Mic level:', event.data[12]); // [0 ... 100]
+			console.log('    Direct level:', event.data[13]); // [0 ... 100]
 			break;
 
 		case 8:		// Noise Suppression - 16 bytes
-			console.log('    Threshold:', event.data[10]);
-			console.log('    Release:', event.data[11]);
-			console.log('    Byte 12:', event.data[12], '(0 = Guitar in, 1 = NS in?)');
-			console.log('    Effect level:', event.data[13]);
+			console.log('    Threshold:', event.data[10]); // [0 ... 100]
+			console.log('    Release:', event.data[11]); // [0 ... 100]
+			// console.log('    Byte 12:', event.data[12], '(0 = Guitar in, 1 = NS in?)');
+			console.log('    Detect: Probably', ['Guitar in', 'NS in'][event.data[12]]);
+
+			if (event.data[12] != 0) {
+				debugMessages.push(`Patch ${patchNum} NS: Byte 12 (Detect?) is ${event.data[12]}`);
+			}
+
+			console.log('    Effect level:', event.data[13]); // [0 ... 100]
 			break;
 
 		case 9:		// Modulation - 88 bytes
-			console.log('    Modulation - 88 bytes, 76 of which describe the modulation settings');
+			// TODO - To be completed: Harmonist and Humanizer
 
 			console.log('    Modulation mode:', modulationTypes[event.data[10]]);
 
 			if (event.data[10] == 0) {
 				// Flanger
 
-				// - Rate: [0 ... 100] -> 20 = 0x14 -> Byte 17
-				console.log('    Rate:', event.data[17]);
-				// - Depth: [0 ... 100] -> 65 = 0x41 -> Byte 18
-				console.log('    Depth:', event.data[18]);
-				// - Manual: [0 ... 100] -> 75 = 0x4B -> Byte 19
-				console.log('    Manual:', event.data[19]);
-				// - Resonance: [-100 ... +100] -> +50
-				console.log('    Resonance:', '?');
-				// - Separation: [-100 ... +100] -> +1
-				console.log('    Separation:', '?');
+				console.log('    Rate:', event.data[17]); // [0 ... 100]
+				console.log('    Depth:', event.data[18]); // [0 ... 100]
+				console.log('    Manual:', event.data[19]); // [0 ... 100]
+				console.log('    Resonance:', signed(event.data[20] * 16 + event.data[21] - 100)); // [-100 ... +100]
+				console.log('    Separation:', signed(event.data[23] * 16 + event.data[24] - 100)); // [-100 ... +100]
 				// - Gate: Off, [1 ... 100] -> Off
-				console.log('    Gate:', '?');
+				console.log('    Gate: ?; Byte 22 is', event.data[22], '; Byte 25 is', event.data[25], '; Byte 27 is', event.data[27]);
+
+				debugMessages.push(`${patchNum} Flanger Gate: Byte 22 is ${event.data[22]}; Byte 25 is ${event.data[25]}; Byte 27 is ${event.data[27]}`);
 			} else if (event.data[10] == 1) {
 				// Phaser
 
-				phaserTypes;
-
-				console.log('    Phaser type:', '?'); // phaserTypes[]
-				console.log('    Rate:', event.data[17]);
-				console.log('    Depth:', event.data[18]);
-				console.log('    Manual:', event.data[19]);
-				console.log('    Resonance:', '?'); // [-100 ... +100]
-				console.log('    Step:', '?'); // Off, [1 ... 100]
+				console.log('    Phaser type:', phaserTypes[event.data[11]]);
+				console.log('    Rate:', event.data[17]); // [0 ... 100]
+				console.log('    Depth:', event.data[18]); // [0 ... 100]
+				console.log('    Manual:', event.data[19]); // [0 ... 100]
+				console.log('    Resonance:', signed(event.data[20] * 16 + event.data[21] - 100)); // [-100 ... +100]
+				console.log('    Step:', (event.data[22] == 0) ? 'Off' : event.data[22]); // Off, [1 ... 100]
 			} else if (event.data[10] == 2) {
 				// Pitch shifter
 
@@ -378,6 +361,7 @@ function onMIDIMessage(event) {
 				// - Level [1-3] : [0 ... 100]
 				// - Balance : E = [0 ... 100], D = 100 - E
 				// - Total level : [0 ... 100]
+				debugMessages.push(`Patch ${patchNum} Mod: Harmonist`);
 			} else if (event.data[10] == 4) {
 				// Vibrato
 
@@ -396,31 +380,55 @@ function onMIDIMessage(event) {
 			} else if (event.data[10] == 6) {
 				// Humanizer
 
-				console.log('    Humanizer type:', '?'); // ['Auto', 'Pedal']
-				console.log('    Vowel 1:', '?'); // ['a', 'e', 'i', 'o', 'u']
-				console.log('    Vowel 2:', '?'); // ['a', 'e', 'i', 'o', 'u']
+				// E.g. 37 IYA CRUNCH :
 
-				// if (Humanizer type is Auto) {
-				console.log('    Rate:', '?'); // [0 ... 100]
-				console.log('    Depth:', '?'); // [0 ... 100]
-				console.log('    Trigger:', '?'); // ['Off', 'Auto']
-				// } else if (Humanizer type is Pedal) {
-				console.log('    Pedal:', '?'); // EXP PEDAL, FC-200EXP, MIDI C#1-31, 64-95
-				// }
+				// Modulation: F0 41 00 79 12 00 24 09 00 01 06 02 02 50 00 02 00 42 45 32 07 08 00 06 05 00 01 00 53 64 00 01 24 0C 30 32 32 32 00 10 0B 15 32 00 64 50 1E 14 32 55 1C 13 24 1B 12 24 1B 13 24 1B 12 24 1B 13 24 1C 13 24 1B 12 24 1C 13 24 1B 12 24 1B 13 24 1B 12 24 1B 12 24 50 F7
+
+				// Payload: 06 02 02 50 00 02 00 42 45 32 07 08 00 06 05 00 01 00 53 64 00 01 24 0C 30 32 32 32 00 10 0B 15 32 00 64 50 1E 14 32 55 1C 13 24 1B 12 24 1B 13 24 1B 12 24 1B 13 24 1C 13 24 1B 12 24 1C 13 24 1B 12 24 1B 13 24 1B 12 24 1B 12 24
+
+				// - Type: Auto -> the 0x00 in byte 14 ?
+				// - Vowel: i-a -> the 0x02 and 0x00 in bytes 15 and 16 ?
+				// - Rate: 66 = 0x42 -> Byte 17
+				// - Depth: 69 = 0x45 -> Byte 18
+				// - Trigger: Auto -> the 0x01 in byte 26 or byte 31 ?
+
+				// E.g. 98 EXP HUMANIZE :
+
+				// Modulation: F0 41 00 79 12 00 61 09 00 01 06 02 02 50 01 00 02 14 3C 32 07 08 00 06 05 00 01 01 53 64 00 01 24 0C 30 32 32 32 00 10 0B 15 32 00 64 50 1E 14 32 55 1C 13 24 1B 12 24 1B 13 24 1B 12 24 1B 13 24 1C 13 24 1B 12 24 1C 13 24 1B 12 24 1B 13 24 1B 12 24 1B 12 24 48 F7
+
+				// Payload: 06 02 02 50 01 00 02 14 3C 32 07 08 00 06 05 00 01 01 53 64 00 01 24 0C 30 32 32 32 00 10 0B 15 32 00 64 50 1E 14 32 55 1C 13 24 1B 12 24 1B 13 24 1B 12 24 1B 13 24 1C 13 24 1B 12 24 1C 13 24 1B 12 24 1B 13 24 1B 12 24 1B 12 24
+
+				// - Type: Pedal = 1?
+				// - Vowel: a-i = 0, 2
+				// - Rate: X
+				// - Depth: X
+				// - Trigger: X
+				// - Pedal: FC-200EXP = 1? -> Byte 26, 27, or 31?
+
+				console.log('    Humanizer type:', ['Auto', 'Pedal'][event.data[14]]);
+				console.log('    Vowel 1:', vowels[event.data[15]]); // ['a', 'e', 'i', 'o', 'u']
+				console.log('    Vowel 2:', vowels[event.data[16]]); // ['a', 'e', 'i', 'o', 'u']
+
+				if (event.data[14] == 0) {
+					console.log('    Rate:', event.data[17]); // [0 ... 100]
+					console.log('    Depth:', event.data[18]); // [0 ... 100]
+					console.log('    Trigger:', '?; byte 26 is', event.data[26], '; byte 31 is', event.data[31]); // ['Off', 'Auto']
+					// debugMessages.push(`Patch ${patchNum}: Auto Humanizer: Trigger: Byte 26 is ${event.data[26]}; Byte 27 is ${event.data[27]}; Byte 31 is ${event.data[31]}`);
+				} else if (event.data[14] == 1) {
+					// console.log('    Pedal:', pedals[event.data[?]]); // EXP PEDAL, FC-200EXP, MIDI C#1-31, 64-95
+					console.log('    Pedal:', '?; byte 26 is', event.data[26], '; byte 27 is', event.data[27], '; byte 31 is', event.data[31]);
+					// debugMessages.push(`Patch ${patchNum}: Pedal Humanizer: Pedal: Byte 26 is ${event.data[26]}; Byte 27 is ${event.data[27]}; Byte 31 is ${event.data[31]}`);
+				}
 			}
 
 			break;
 
 		case 10:	// Delay - 32 bytes
+			// TODO - To be completed
 
 			console.log('    Delay mode:', delayModes[event.data[10]]);
 			// Tempo In? : Fixed, Control 1-2, FC-200CTL, MIDI C#1-31, 64-95
 			// Tempo (used when Tempo In = Fixed) : Quarter note = [50 ... 300] per minute?
-			// Delay Interval[C] : From 1/4 to 4
-			//   -> Byte 13?
-			//   - Values 1/4, 1/3, 3/8, 1/2, 2/3, 3/4, 1, 1.5, 2, 3, 4
-			// Delay Interval[L] : From 1% to 400%
-			// Delay Interval[R] : From 1% to 400%
 
 			console.log('    Byte 11:', event.data[11]);
 			console.log('    Byte 12:', event.data[12]);
@@ -429,75 +437,79 @@ function onMIDIMessage(event) {
 			if (event.data[10] == 0) {
 				// Delay mode: Normal
 
-				console.log(`    Delay Time[C]: ${event.data[14] * 128 + event.data[15]} ms`);
-				console.log(`    Delay Time[L]: ${event.data[16] * 256 + event.data[17]} %`);
-				console.log(`    Delay Time[R]: ${event.data[18] * 256 + event.data[19]} %`);
+				console.log(`    Delay Time[C]: ${event.data[14] * 128 + event.data[15]} ms`); // [1 ms ... 2000 ms]
+				console.log(`    Delay Time[L]: ${event.data[16] * 256 + event.data[17]} %`); // [1% ... 400%]
+				console.log(`    Delay Time[R]: ${event.data[18] * 256 + event.data[19]} %`); // [1% ... 400%]
 			} else if (event.data[10] == 1) {
 				// Delay mode: Tempo
 
 				console.log('    Byte 11:', event.data[11], '(Tempo In? 0 = Fixed?)');
 				console.log('    Tempo (Byte 12?): ?');
 				console.log('    Delay Interval[C]:', delayIntervalCValues[event.data[13]]);
-				console.log('    Delay Interval[L]: ?');
-				console.log('    Delay Interval[R]: ?');
+				console.log('    Delay Interval[L]: ?'); // [1% ... 400%]
+				console.log('    Delay Interval[R]: ?'); // [1% ... 400%]
+				debugMessages.push(`Patch ${patchNum} Delay mode: Tempo`);
 			}
 
 			console.log('    Byte 20:', event.data[20]);
-			console.log('    Feedback:', event.data[21]);
-			console.log('    Level[C]:', event.data[22]);
-			console.log('    Level[L]:', event.data[23]);
-			console.log('    Level[R]:', event.data[24]);
-			console.log('    Hi Damp:', event.data[25] - 50);
-			// console.log('    Byte 26:', event.data[26], '(Hi Cut? 0x0F = flat?)');
+			console.log('    Feedback:', event.data[21]); // [0 ... 100]
+			console.log('    Level[C]:', event.data[22]); // [0 ... 100]
+			console.log('    Level[L]:', event.data[23]); // [0 ... 100]
+			console.log('    Level[R]:', event.data[24]); // [0 ... 100]
+			console.log('    Hi Damp:', event.data[25] - 50); // [-50 ... 0]
 			console.log('    Hi cut:', hiCutOptions[event.data[26]]);
 			console.log('    Byte 27:', event.data[27], '(Smooth? 0 = off, 1 = on?)');
-			console.log('    Effect level:', event.data[28]);
-			console.log('    Direct level:', event.data[29]);
+			console.log('    Effect level:', event.data[28]); // [0 ... 100]
+			console.log('    Direct level:', event.data[29]); // [0 ... 100]
 			break;
 
 		case 11:	// Chorus - 20 bytes
 			console.log('    Chorus mode:', ['Mono', 'Stereo'][event.data[10]]);
-			console.log('    Rate:', event.data[11]);
-			console.log('    Depth:', event.data[12]);
+			console.log('    Rate:', event.data[11]); // [0 ... 100]
+			console.log('    Depth:', event.data[12]); // [0 ... 100]
 			console.log('    Predelay:', event.data[13] * 0.5, 'ms');
 			// Low cut options: Flat, 55 Hz, 110 Hz, 165, 220 280 340 400 500 630 800
 			console.log('    Low cut:', lowCutOptions[event.data[14]]);
 			// Hi cut options: 500 630 800 1.00k 1.25k 1.60k 2.00k 2.50k 3.15k 4.00k 5.00k 6.30k 8.00k 10.0k 12.5k, Flat
 			console.log('    Hi cut:', hiCutOptions[event.data[15]]);
 			console.log(`    LFO: tri${10 - event.data[16]}:sin${event.data[16]}`);
-			console.log('    Effect level:', event.data[17]);
+			console.log('    Effect level:', event.data[17]); // [0 ... 100]
 			break;
 
 		case 12:	// Tremolo / Panning - 16 bytes
+			// E.g. 38 ROTARY; 40 STEP PHASER
 			// Note: Tremolo is an effect that creates a cyclic change in volume
 
-			// - Mode : ['Tremolo - Triangular Wave', 'Tremolo - Square Wave', 'Pan - Triangular Wave', 'Pan - Square Wave', ]
-			// - Rate : [0 ... 100]
-			// - Depth : [0 ... 100]
-			// - Balance : R = [0 ... 100], L = 100 - R
-			console.log('    Byte 10:', event.data[10]);
-			console.log('    Byte 11:', event.data[11]);
-			console.log('    Byte 12:', event.data[12]);
-			console.log('    Byte 13:', event.data[13]);
+			// - Mode : ['Tremolo - Triangular Wave', 'Tremolo - Square Wave', 'Pan - Triangular Wave', 'Pan - Square Wave']
+			console.log('    Trem / Pan Type:', tremPanTypes[event.data[10]]);
+			console.log('    Rate:', event.data[11]); // [0 ... 100]
+			console.log('    Depth:', event.data[12]); // [0 ... 100]
+			console.log(`    Balance: L${100 - event.data[13]}:${event.data[13]}R`);
 			break;
 
 		case 13:	// Reverb - 20 bytes
 			console.log('    Reverb type:', reverbTypes[event.data[10]]);
-			console.log('    RevTime:', event.data[11] / 10, 'seconds');
-			console.log('    Predelay:', event.data[12], 'ms');
-			// console.log('    Byte 13 (Low cut):', event.data[13], '(0 = flat ?)');
-			// console.log('    Byte 14 (Hi cut):', event.data[14], '(6 = 2.00 kHz ?)');
+			console.log('    RevTime:', event.data[11] / 10, 'seconds'); // [0.1 ... 10] sec
+			console.log('    Predelay:', event.data[12], 'ms'); // [0 ... 100] ms
 			// Low cut options: Flat, 55 Hz, 110 Hz, 165, 220 280 340 400 500 630 800
 			console.log('    Low cut:', lowCutOptions[event.data[13]]);
 			// Hi cut options: 500 630 800 1.00k 1.25k 1.60k 2.00k 2.50k 3.15k 4.00k 5.00k 6.30k 8.00k 10.0k 12.5k, Flat
 			console.log('    Hi cut:', hiCutOptions[event.data[14]]);
-			console.log('    Diffusion:', event.data[15]);
-			console.log('    Effect level:', event.data[16]);
-			console.log('    Direct level:', event.data[17]);
+			console.log('    Diffusion:', event.data[15]); // [0 ... 10]
+			console.log('    Effect level:', event.data[16]); // [0 ... 100]
+			console.log('    Direct level:', event.data[17]); // [0 ... 100]
 			break;
 
 		default:
 			break;
+	}
+
+	if (patchNum == 100 && messageNum == 13) {
+		console.log('\n**** The End ****\n');
+
+		for (const debugMessage of debugMessages) {
+			console.log('debugMessage:', debugMessage);
+		}
 	}
 }
 
