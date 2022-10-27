@@ -156,6 +156,8 @@ function onMIDIMessage(event) {
 	const pedalsForWah = ['Fixed', 'Expression Pedal', 'FC-200EXP']; // ... MIDI C#1-31, 64-95
 	// TODO: const pedalsForWah = ['Fixed', ...pedals];
 
+	const controlPedals = ['Fixed', 'Control 1', 'Control 2', 'FC-200CTL']; // ... MIDI C#1-31, 64-95
+
 	const polarities = ['Down', 'Up'];
 
 	const distortionTypes = ['Vintage OD', 'Turbo OD', 'Blues', 'Distortion', 'Turbo DS', 'Metal', 'Fuzz'];
@@ -424,41 +426,44 @@ function onMIDIMessage(event) {
 			break;
 
 		case 10:	// Delay - 32 bytes
-			// TODO - To be completed
+			// TODO - Test the four 256s
 
 			console.log('    Delay mode:', delayModes[event.data[10]]);
 			// Tempo In? : Fixed, Control 1-2, FC-200CTL, MIDI C#1-31, 64-95
 			// Tempo (used when Tempo In = Fixed) : Quarter note = [50 ... 300] per minute?
 
-			console.log('    Byte 11:', event.data[11]);
-			console.log('    Byte 12:', event.data[12]);
-			console.log('    Byte 13:', event.data[13]);
-
 			if (event.data[10] == 0) {
 				// Delay mode: Normal
 
 				console.log(`    Delay Time[C]: ${event.data[14] * 128 + event.data[15]} ms`); // [1 ms ... 2000 ms]
+				// To test: Should these four 256s be 128s?
 				console.log(`    Delay Time[L]: ${event.data[16] * 256 + event.data[17]} %`); // [1% ... 400%]
 				console.log(`    Delay Time[R]: ${event.data[18] * 256 + event.data[19]} %`); // [1% ... 400%]
 			} else if (event.data[10] == 1) {
 				// Delay mode: Tempo
 
-				console.log('    Byte 11:', event.data[11], '(Tempo In? 0 = Fixed?)');
-				console.log('    Tempo (Byte 12?): ?');
-				console.log('    Delay Interval[C]:', delayIntervalCValues[event.data[13]]);
-				console.log('    Delay Interval[L]: ?'); // [1% ... 400%]
-				console.log('    Delay Interval[R]: ?'); // [1% ... 400%]
-				debugMessages.push(`Patch ${patchNum} Delay mode: Tempo`);
+				console.log('    Tempo In foot switch:', controlPedals[event.data[11]]);
+
+				if (event.data[11] == 0) { // Tempo In foot switch == 'Fixed'
+					// Patch 12 LANDAU JUICE: Tempo = 94
+					console.log('    Tempo:', event.data[12] * 16 + event.data[13] + 50);
+				}
+
+				console.log('    Delay Interval[C]:', delayIntervalCValues[event.data[20]]);
+				console.log(`    Delay Interval[L]: ${event.data[16] * 256 + event.data[17]} %`); // [1% ... 400%]
+				console.log(`    Delay Interval[R]: ${event.data[18] * 256 + event.data[19]} %`); // [1% ... 400%]
+				// debugMessages.push(`Patch ${patchNum} Delay mode: Tempo`);
 			}
 
-			console.log('    Byte 20:', event.data[20]);
+			// console.log('    Byte 20:', event.data[20]);
 			console.log('    Feedback:', event.data[21]); // [0 ... 100]
 			console.log('    Level[C]:', event.data[22]); // [0 ... 100]
 			console.log('    Level[L]:', event.data[23]); // [0 ... 100]
 			console.log('    Level[R]:', event.data[24]); // [0 ... 100]
-			console.log('    Hi Damp:', event.data[25] - 50); // [-50 ... 0]
+			console.log('    Hi Damp:', signed(event.data[25] - 50)); // [-50 ... 0]
 			console.log('    Hi cut:', hiCutOptions[event.data[26]]);
-			console.log('    Byte 27:', event.data[27], '(Smooth? 0 = off, 1 = on?)');
+			// console.log('    Byte 27:', event.data[27], '(Smooth? 0 = off, 1 = on?)');
+			console.log('    Smooth:', ['Off', 'On'][event.data[27]]);
 			console.log('    Effect level:', event.data[28]); // [0 ... 100]
 			console.log('    Direct level:', event.data[29]); // [0 ... 100]
 			break;
