@@ -58,6 +58,22 @@ function signed(n) {
 	return `${str}${n}`;
 }
 
+function createMidiControlNumbersArray() {
+	// MIDI C#1-31, 64-95
+	let i;
+	let result = [];
+
+	for (i = 1; i <= 31; ++i) {
+		result.push(`MIDI C#${i}`);
+	}
+
+	for (i = 64; i <= 95; ++i) {
+		result.push(`MIDI C#${i}`);
+	}
+
+	return result;
+}
+
 // Handling MIDI Input
 
 function onMIDIMessage(event) {
@@ -151,12 +167,13 @@ function onMIDIMessage(event) {
 
 	const compressorTypes = ['Compressor', 'Limiter'];
 
-	const pedals = ['Expression Pedal', 'FC-200EXP']; // ... MIDI C#1-31, 64-95
+	const midiControlNumbersArray = createMidiControlNumbersArray();
 
-	const pedalsForWah = ['Fixed', 'Expression Pedal', 'FC-200EXP']; // ... MIDI C#1-31, 64-95
-	// TODO: const pedalsForWah = ['Fixed', ...pedals];
+	const pedals = ['Expression Pedal', 'FC-200EXP'].concat(midiControlNumbersArray);
 
-	const controlPedals = ['Fixed', 'Control 1', 'Control 2', 'FC-200CTL']; // ... MIDI C#1-31, 64-95
+	const pedalsForWah = ['Fixed'].concat(pedals);
+
+	const controlPedals = ['Fixed', 'Control 1', 'Control 2', 'FC-200CTL'].concat(midiControlNumbersArray);
 
 	const polarities = ['Down', 'Up'];
 
@@ -255,8 +272,13 @@ function onMIDIMessage(event) {
 			console.log('    Treble:', event.data[14]); // [0 ... 100]
 			console.log('    Presence:', event.data[15]); // [0 ... 100]
 			console.log('    Master:', event.data[16]); // [0 ... 100]
-			// Note: 'METAL 5150' does not have a 'Bright' setting.
-			console.log('    Bright:', ['Off', 'On'][event.data[17]]);
+
+			// Note: 'Match Drive', 'MS 1959 (I)', 'MS 1959 (II)', 'MS 1959 (I + II)', 'SLDN LEAD', and 'METAL 5150' do not have a 'Bright' setting.
+
+			if ([0, 1, 3].indexOf(event.data[10]) >= 0) {
+				console.log('    Bright:', ['Off', 'On'][event.data[17]]);
+			}
+
 			console.log('    Gain:', ['Low', 'Middle', 'High'][event.data[18]]);
 			break;
 
@@ -286,13 +308,7 @@ function onMIDIMessage(event) {
 		case 8:		// Noise Suppression - 16 bytes
 			console.log('    Threshold:', event.data[10]); // [0 ... 100]
 			console.log('    Release:', event.data[11]); // [0 ... 100]
-			// console.log('    Byte 12:', event.data[12], '(0 = Guitar in, 1 = NS in?)');
-			console.log('    Detect: Probably', ['Guitar in', 'NS in'][event.data[12]]);
-
-			if (event.data[12] != 0) {
-				debugMessages.push(`Patch ${patchNum} NS: Byte 12 (Detect?) is ${event.data[12]}`);
-			}
-
+			console.log('    Detect:', ['Guitar in', 'NS in'][event.data[12]]);
 			console.log('    Effect level:', event.data[13]); // [0 ... 100]
 			break;
 
