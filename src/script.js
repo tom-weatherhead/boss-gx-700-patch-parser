@@ -74,16 +74,34 @@ function createMidiControlNumbersArray() {
 	return result;
 }
 
+function printMIDIMessageAsHex(eventData) {
+	// let str = `MIDI message received at timestamp ${event.timeStamp}[${event.data.length} bytes]: `;
+	let str = '';
+	let i;
+
+	console.log(`\nMIDI message contains ${eventData.length} bytes:`);
+
+	for (i = 0; i < eventData.length; ++i) {
+		let hex = eventData[i].toString(16);
+
+		if (hex.length < 2) {
+			hex = '0' + hex;
+		}
+
+		if (i % 16 === 0) {
+			str += '\n';
+		}
+
+		str += `0x${hex} `;
+	}
+
+	console.log(str + '\n');
+}
+
 // Handling MIDI Input
 
 function onMIDIMessage(event) {
-	// let str = `MIDI message received at timestamp ${event.timeStamp}[${event.data.length} bytes]: `;
-	//
-	// for (const character of event.data) {
-	// 	str += `0x${character.toString(16)} `;
-	// }
-	//
-	// console.log(str);
+	printMIDIMessageAsHex(event.data);
 
 	// Does the message begin with 0xf0 0x41 0x0 0x79 0x12 0x0 ?
 
@@ -191,6 +209,23 @@ function onMIDIMessage(event) {
 
 	const phaserTypes = ['4-stage', '6-stage', '8-stage', '10-stage', '12-stage'];
 
+	const keys = [
+		'C maj', 'Db maj', 'D maj', 'Eb maj', 'E maj', 'F maj',
+		'F# (Gb) maj', 'G maj', 'Ab maj', 'A maj', 'Bb maj', 'B maj',
+		'A min', 'Bb min', 'B min', 'C min', 'C# min', 'D min',
+		'D# (Eb) min', 'E min', 'F min', 'F# min', 'G min', 'G# min'
+	];
+
+	// - Interval [1-3] : From 2 octaves down to 2 octaves up: 29 options: ['-2 octaves', ..., 'Unity', '+ 2nd', '+ 3rd', ..., '+ Octave', '+ 2nd above Octave (9th?)', ... '+ 7th above Octave', '+2 octaves']
+	// TODO:
+	const intervals = [
+		'-2Oct', '-Oct-7th', '-Oct-6th', '-Oct-5th', '-Oct-4th', '-Oct-3rd', '-Oct-2nd',
+		'-Oct', '-7th', '-6th', '-5th', '-4th', '-3rd', '-2nd',
+		'UNI',
+		'+2nd', '+3rd', '+4th', '+5th', '+6th', '+7th', '+Oct',
+		'+Oct+2nd', '+Oct+3rd', '+Oct+4th', '+Oct+5th', '+Oct+6th', '+Oct+7th', '+2Oct'
+	];
+
 	const pitchShifterTypes = ['Slow', 'Fast', 'Mono'];
 
 	const vowels = ['a', 'e', 'i', 'o', 'u'];
@@ -283,9 +318,9 @@ function onMIDIMessage(event) {
 			break;
 
 		case 5:		// Loop - 15 bytes
-			console.log('    Byte 10 (Return Level? [0% ... 100%]):', event.data[10]);
-			console.log('    Byte 11 (Send Level? [0% ... 100%]):', event.data[11]);
-			console.log('    Byte 12 (Mode? 0 = Series, 1 = Parallel?):', event.data[12]);
+			console.log('    Return Level:', event.data[10], '%'); // [0% ... 100%]
+			console.log('    Send Level:', event.data[11], '%'); // [0% ... 100%]
+			console.log('    Mode:', ['Series', 'Parallel'][event.data[12]]);
 			break;
 
 		case 6:		// Equalization - 18 bytes
@@ -313,7 +348,7 @@ function onMIDIMessage(event) {
 			break;
 
 		case 9:		// Modulation - 88 bytes
-			// TODO - To be completed: Harmonist and Humanizer
+			// TODO - To be completed: (Pan in Pitch Shifter) and Humanizer
 
 			console.log('    Modulation mode:', modulationTypes[event.data[10]]);
 
@@ -325,10 +360,7 @@ function onMIDIMessage(event) {
 				console.log('    Manual:', event.data[19]); // [0 ... 100]
 				console.log('    Resonance:', signed(event.data[20] * 16 + event.data[21] - 100)); // [-100 ... +100]
 				console.log('    Separation:', signed(event.data[23] * 16 + event.data[24] - 100)); // [-100 ... +100]
-				// - Gate: Off, [1 ... 100] -> Off
-				console.log('    Gate: ?; Byte 22 is', event.data[22], '; Byte 25 is', event.data[25], '; Byte 27 is', event.data[27]);
-
-				debugMessages.push(`${patchNum} Flanger Gate: Byte 22 is ${event.data[22]}; Byte 25 is ${event.data[25]}; Byte 27 is ${event.data[27]}`);
+				console.log('    Gate:', (event.data[25] == 0) ? 'Off' : event.data[25]); // - Gate: Off, [1 ... 100]
 			} else if (event.data[10] == 1) {
 				// Phaser
 
@@ -346,21 +378,24 @@ function onMIDIMessage(event) {
 				console.log('    Pitch shifter type:', pitchShifterTypes[event.data[31]]);
 
 				// Voice 1
-				console.log('    Pitch[1]:', event.data[32] - 24);
-				console.log('    Fine[1]:', event.data[35] - 50);
+				console.log('    Pitch[1]:', signed(event.data[32] - 24));
+				console.log('    Fine[1]:', signed(event.data[35] - 50));
 				console.log(`    Pan[1]: L${event.data[42]}:${100 - event.data[42]}R`);
+				// Or: console.log(`    Pan[1]: L${100 - event.data[42]}:${event.data[42]}R`);
 				console.log('    Level[1]:', event.data[45]);
 
 				// Voice 2
-				console.log('    Pitch[2]:', event.data[33] - 24);
-				console.log('    Fine[2]:', event.data[36] - 50);
+				console.log('    Pitch[2]:', signed(event.data[33] - 24));
+				console.log('    Fine[2]:', signed(event.data[36] - 50));
 				console.log(`    Pan[2]: L${event.data[43]}:${100 - event.data[43]}R`);
+				// Or: console.log(`    Pan[2]: L${100 - event.data[43]}:${event.data[43]}R`);
 				console.log('    Level[2]:', event.data[46]);
 
 				// Voice 3
-				console.log('    Pitch[3]:', event.data[34] - 24);
-				console.log('    Fine[3]:', event.data[37] - 50);
+				console.log('    Pitch[3]:', signed(event.data[34] - 24));
+				console.log('    Fine[3]:', signed(event.data[37] - 50));
 				console.log(`    Pan[3]: L${event.data[44]}:${100 - event.data[44]}R`);
+				// Or: console.log(`    Pan[3]: L${100 - event.data[44]}:${event.data[44]}R`);
 				console.log('    Level[3]:', event.data[47]);
 
 				console.log(`    Balance: D${event.data[48]}:${100 - event.data[48]}E`);
@@ -368,24 +403,74 @@ function onMIDIMessage(event) {
 			} else if (event.data[10] == 3) {
 				// Harmonist
 
-				// - Key: [
-				//   'C maj', 'Db maj', 'D maj', 'Eb maj', 'E maj', 'F maj',
-				//   'F# (Gb) maj', 'G maj', 'Ab maj', 'A maj', 'Bb maj', 'B maj',
-				//   'A min', 'Bb min', 'B min', 'C min', 'C# min', 'D min',
-				//   'D# (Eb) min', 'E min', 'F min', 'F# min', 'G min', 'G# min'
-				// ]
-				// - Interval [1-3] : From 2 octaves down to 2 octaves up: 29 options: ['-2 octaves', ..., 'Unity', '+ 2nd', '+ 3rd', ..., '+ Octave', '+ 2nd above Octave (9th?)', ... '+ 7th above Octave', '+2 octaves']
 				// - Pan [1-3] : R = [0 ... 100], L = 100 - R
 				// - Level [1-3] : [0 ... 100]
 				// - Balance : E = [0 ... 100], D = 100 - E
 				// - Total level : [0 ... 100]
-				debugMessages.push(`Patch ${patchNum} Mod: Harmonist`);
+
+				// Patch 19 BG 3VOICE
+				// - Key: C maj -> 0x00
+				// - Interval [1-3] : +3rd, -4th, UNI
+				//   - +3rd = decimal 16
+				// - Pan [1-3] : L30:70R, L70:30R, L50:50R
+				// - Level [1-3] : 80, 80, 0
+				// - Balance : D50:50E
+				// - Total level : 80
+
+				// F0 41 00 79 12 00 12 09 00 01 03 02 02 50 00 00
+				// 02 14 29 32 07 08 00 06 05 00 01 00 53 64 00 01
+				// 24 0C 18 32 32 32 00 10 0B 0E 46 1E 32 50 50 00
+				// 32 50 1C 13 18 1B 12 18 1B 13 18 1B 12 18 1B 13
+				// 18 1C 13 18 1B 12 18 1C 13 18 1B 12 18 1B 13 18
+				// 1B 12 18 1B 12 18 45 F7
+
+				// Patch 32 1NOTE CHORD
+				// - Key: C maj -> 0x00 -> Byte 38
+				// - Interval [1-3] : -3rd, -5th, +Oct -> Bytes 39-41
+				// - Pan [1-3] : L60:40R, L40:60R, L50:50R
+				//   -> Bytes 42-44: 28 3C 32 = 40 60 50 = the R
+				// - Level [1-3] : 80, 80, 5 -> Bytes 45-47
+				// - Balance : D50:50E -> Byte 48
+				// - Total level : 85 -> Byte 49
+
+				// F0 41 00 79 12 00 1F 09 00 01 03 02 02 50 00 00
+				// 02 14 29 32 07 08 00 06 05 00 01 00 53 64 00 01
+				// 24 0C 30 32 32 32 00 0C 0A 15 28 3C 32 50 50 05
+				// 32 55 13 11 24 14 11 24 15 11 24 14 11 24 14 11
+				// 24 15 12 24 14 11 24 15 11 24 14 11 24 14 11 24
+				// 14 11 24 14 11 24 6A F7
+
+				console.log('    Key:', keys[event.data[38]]);
+
+				// Voice 1
+				console.log('    Interval[1]:', intervals[event.data[39]]);
+				console.log(`    Pan[1]: L${100 - event.data[42]}:${event.data[42]}R`);
+				console.log('    Level[1]:', event.data[45]);
+
+				// Voice 2
+				console.log('    Interval[2]:', intervals[event.data[40]]);
+				console.log(`    Pan[2]: L${100 - event.data[43]}:${event.data[43]}R`);
+				console.log('    Level[2]:', event.data[46]);
+
+				// Voice 3
+				console.log('    Interval[3]:', intervals[event.data[41]]);
+				console.log(`    Pan[3]: L${100 - event.data[44]}:${event.data[44]}R`);
+				console.log('    Level[3]:', event.data[47]);
+
+				console.log(`    Balance: D${event.data[48]}:${100 - event.data[48]}E`);
+				console.log('    Total level:', event.data[49]);
 			} else if (event.data[10] == 4) {
 				// Vibrato
 
 				// Note (by ThAW): Vibrato is an effect that creates a cyclic change in pitch (?)
 
-				console.log('    Trigger:', '?'); // ['Off', 'On', 'Auto']
+				// Patch 35 AUTO VIBRATO :
+				// - Trigger: Auto -> 0x02
+				// - Rise time: 70
+				// - Rate: 60
+				// - Depth: 41
+
+				console.log('    Trigger:', ['Off', 'On', 'Auto'][event.data[12]]);
 				console.log('    Rise time:', event.data[13]); // [0 ... 100]
 				console.log('    Rate:', event.data[17]); // [0 ... 100]
 				console.log('    Depth:', event.data[18]); // [0 ... 100]
@@ -431,11 +516,11 @@ function onMIDIMessage(event) {
 					console.log('    Rate:', event.data[17]); // [0 ... 100]
 					console.log('    Depth:', event.data[18]); // [0 ... 100]
 					console.log('    Trigger:', '?; byte 26 is', event.data[26], '; byte 31 is', event.data[31]); // ['Off', 'Auto']
-					// debugMessages.push(`Patch ${patchNum}: Auto Humanizer: Trigger: Byte 26 is ${event.data[26]}; Byte 27 is ${event.data[27]}; Byte 31 is ${event.data[31]}`);
+					debugMessages.push(`Patch ${patchNum}: Auto Humanizer: Trigger: Byte 26 is ${event.data[26]}; Byte 27 is ${event.data[27]}; Byte 31 is ${event.data[31]}`);
 				} else if (event.data[14] == 1) {
 					// console.log('    Pedal:', pedals[event.data[?]]); // EXP PEDAL, FC-200EXP, MIDI C#1-31, 64-95
 					console.log('    Pedal:', '?; byte 26 is', event.data[26], '; byte 27 is', event.data[27], '; byte 31 is', event.data[31]);
-					// debugMessages.push(`Patch ${patchNum}: Pedal Humanizer: Pedal: Byte 26 is ${event.data[26]}; Byte 27 is ${event.data[27]}; Byte 31 is ${event.data[31]}`);
+					debugMessages.push(`Patch ${patchNum}: Pedal Humanizer: Pedal: Byte 26 is ${event.data[26]}; Byte 27 is ${event.data[27]}; Byte 31 is ${event.data[31]}`);
 				}
 			}
 
